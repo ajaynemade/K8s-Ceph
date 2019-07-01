@@ -1,0 +1,96 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-provisioner
+  namespace: cephfs
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    resourceNames: ["kube-dns","coredns"]
+    verbs: ["list", "get"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: cephfs-provisioner
+    namespace: cephfs
+roleRef:
+  kind: ClusterRole
+  name: cephfs-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cephfs-provisioner
+  namespace: cephfs
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "delete"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cephfs-provisioner
+  namespace: cephfs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cephfs-provisioner
+subjects:
+- kind: ServiceAccount
+  name: cephfs-provisioner
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cephfs-provisioner
+  namespace: cephfs
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cephfs-provisioner
+  namespace: cephfs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: cephfs-provisioner
+    spec:
+      containers:
+      - name: cephfs-provisioner
+        image: "quay.io/external_storage/cephfs-provisioner:latest"
+        env:
+        - name: PROVISIONER_NAME
+          value: ceph.com/cephfs
+        - name: PROVISIONER_SECRET_NAMESPACE
+          value: cephfs
+        command:
+        - "/usr/local/bin/cephfs-provisioner"
+        args:
+        - "-id=cephfs-provisioner-1"
+      serviceAccount: cephfs-provisioner
+
