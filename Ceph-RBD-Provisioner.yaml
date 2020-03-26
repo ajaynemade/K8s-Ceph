@@ -63,12 +63,15 @@ kind: ServiceAccount
 metadata:
   name: rbd-provisioner
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rbd-provisioner
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: rbd-provisioner
   strategy:
     type: Recreate
   template:
